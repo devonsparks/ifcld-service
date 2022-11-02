@@ -2,11 +2,247 @@
 import uuid
 import json
 from typing import List
+from json_logic import jsonLogic as logic
+
+class Space:
+    """
+    As in, "address space". Spaces are an abstraction of an address layer, and not part of the serialization format.
+
+    Note that an address space is different from a dedicated storage layer. A space is a mechanism to look something up.
+    Individual results may come from different locations based on the ID. The dispatch strategy is left to the Space implementation.
+
+    # All of these operations are intentionally idempotent.
+    """
+    # Because this isn't part of the serialization format, maybe a good place to enact notifications.
+    
+    def __init__(self, pkgcls, entitycls, compcls):
+        self.Package = pkgcls
+        self.Entity = entitycls
+        self.Component = compcls
+
+    def _query_all(self):
+        raise NotImplementedError("Concrete subclasses must implement")
+
+    def _query(self, jsonlogic):
+        for asset in self._query_all():
+            if logic.apply(jsonlogic, asset):
+                yield asset
+
+    def query_packages(self, **kwargs):
+        for result in self._query(kwargs):
+            yield self.Package(self, **result)
+
+    def query_entities(self, **kwargs):
+        for result in self._query(kwargs):
+            yield self.Entity(self, **result)
+
+    def query_components(self, **kwargs):
+        for result in self._query(kwargs):
+            yield self.Component(self, **result)
+
+    def get_package(self, **kwargs):
+        return next(self.query_packages(**kwargs))
+    
+    def get_entity(self, **kwargs):
+        return next(self.query_entities(**kwargs))
+
+    def get_component(self, **kwargs):
+        return next(self.query_entities(**kwargs))
+
+    def _put(self, json):
+        raise NotImplementedError("Concrete subclasses must implement")
+
+    def put_package(self, pkg):
+        return self._put(pkg.json())
+
+    def put_entity(self, entity):
+        return self._put(entity.json())
+
+    def put_component(self, component):
+        return self._put(component.json())
+
+
+class MemSpace(Space):
+    def __init__(self):
+        self.res = {}
+
+    def _query_all(self):
+        return self.res.values()
+        
+    def _put(self, payload):
+        assert payload.get('id')
+        self.res[payload.get('id')] = payload
+        return payload
+
+
+class SRoot:
+    def __init__(self, space, **kwargs):
+        self.space = space
+        self.id = kwargs.get('id') or str(uuid.uuid1())
+        self.name = kwargs.get('name') or None
+        self.types = set(kwargs.get('types') or [])
+        self.put()
+    
+    def put(self):
+        raise NotImplementedError("Concrete subclasses must implement")
+
+    def clone(self, **kwargs):
+        json = {**self.json(), **kwargs}
+        assert json.get('id') != self.id
+        return self.__class__(self.space, **json)
+
+    def json(self):
+        return {"id":self.id, "types":list(self.types), "index":self.name}
+    
+    def __repr__(self):
+        return "%s(%s)"%(self.__class__.__name__, self.id)
+
+    def __eq__(self, other):
+        return self.id == other.id
+    
+    def __hash__(self):
+        return hash(self.id)
+
+    def _find(self, set, name = None):
+        for id in set:
+            item = self.space.get(id)
+            print
+            if "SPackage" in item.get('types'): # FIXME
+                item = SPackage(self.space, **item)
+            elif "SEntity" in item.get('types'):
+                item = SEntity(self.space, **item)
+            elif "SComponent" in item.get('types'):
+                item = SComponent(self.space, **item)
+            if name and item.name == name:
+                return item
+            else:
+                yield item
+        
+class SEntity(SRoot):
+    def __init__(self, space, **kwargs):
+        self._packages = set(kwargs.get("packages") or [])
+        self._components = set(kwargs.get("components") or [])
+        super().__init__(space, **kwargs)
+
+    def json(self):
+        return {**super().json(), **{"packages":list(self._packages), "components":list(self._components)}}
+    
+    def packages(self, **kwargs):
+        return self.space.query_packages(self._packages, **kwargs)
+
+    def components(self, name= None):
+        return self.space.query_component(self)
+
+class SComponent(SRoot):
+    def __init__(self, space, **kwargs):
+        self._packages = set(kwargs.get("packages") or [])
+        self._entities = set(kwargs.get("entities") or [])
+        self.contents = kwargs.get("contents") or None
+        super().__init__(space, **kwargs)
+
+    def json(self):
+        return {**super().json(), **{"packages":list(self._packages), "entities":list(self._entities)}}
+ 
+    def packages(self, name = None):
+        return self._find(self._packages, name)
+
+    def entities(self, name = None):
+        return self._find(self._entities, name)
+
+
+class SPackage(SRoot):
+    def __init__(self, space, **kwargs):
+        self._entities = set(kwargs.get("entities") or [])
+        self._components = set(kwargs.get("components") or [])
+        super().__init__(space, **kwargs)
+
+    def json(self):
+        return {**super().json(), **{"entities":list(self._entities), "components":list(self._components)}}
+    
+    def add_entity(self, *entities): 
+        for entity in entities:
+            self._entities.add(entity.id)
+            entity._packages.add(self.id)
+        self.put()
+        entity.put()
+        return entity
+
+    def add_component(self, component, *entities):
+        for entity in entities:
+            self._entities.add(entity.id)
+            self._components.add(component.id)
+            entity._components.add(component.id)
+            entity._packages.add(self.id)
+            component._entities.add(entity.id)
+            component._packages.add(self.id)
+        self.put()
+        entity.put()
+        component.put()
+        return component
+
+    def entities(self, name = None):
+        return self._find(self._entities, name)
+
+    def components(self, name = None):
+        return self._find(self._components, name)
+
+    def link(self, e1 : 'SEntity', e2 : 'SEntity', **kwargs) -> 'Halflink':
+        left = self.add_component(SComponent(self.space, **kwargs), e1)
+        right = self.add_component(SComponent(self.space, **kwargs), e2)
+
+    
+
+U = MemSpace()
+
+P = SPackage(U, id="SPackage", types = ["SPackage"], entities=["SEntity"], components=["SComponent"])
+E = SEntity(U, id="SEntity", types = ["SEntity"], name = "SEntity", packages = ["SPackage"], components=["SComponent"])
+C = SComponent(U, id="SComponent", types = ["SComponent"], name = "SComponent", packages = ["SPackage"], entities=["SEntity"])
+
+E2 = E.clone(id = "E2")
+P.link(E, E2, contents = "Im a link")
+"""
+P = SPackage(U, id="SPackage")
+E = SEntity(U, id="SEntity")
+C = SComponent(U, id="SComponent")
+
+P.add_component(SComponent(U, id="SPackage", name="clones"), E)
+P.add_component(SComponent(U, id="SEntity", name="clones"), E)
+P.add_component(SComponent(U, id="SComponent", name="clones"), E)
+"""
+
+# Everything above this line is an experiment that may be thrown away.
+# ---------------------------------------------------------------------------
+class CompositeSpace(Space):
+    """
+    A space that facades multiple spaces.
+    """
+    def __init__(self):
+        super().__init__()
+        self._spaces = set([])
+    
+    def get(self, id):
+        for space in self._spaces:
+            yield space.get(id)
+    
+    def put(self, id, payload):
+        for space in self._spaces:
+            yield space.put(id, payload)
+
+    
+    def add_space(self, space):
+        return self._spaces.add(space)
+    
+    def remove_space(self, space):
+        return self._spaces.discard(space)
 
 class Contents:
     def __init__(self, value, type):
         self.value = value
         self.type = type
+        self.owner = None
+
+    def set_owner(self, owner):
+        self.owner = owner
 
     def json(self):
         return {"@value":self.value, "@type":self.type}
@@ -133,6 +369,7 @@ class Component(Root):
 
     def set(self, contents : 'Contents'):
         self.contents = contents
+        self.contents.set_owner(self)
         return self
 
     def clone(self):
