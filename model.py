@@ -3,8 +3,11 @@ import uuid
 import json
 from typing import List
 from json_logic import jsonLogic as logic
+from abc import ABC, abstractmethod, abstractclassmethod
+from itertools import chain
 
-class Space:
+
+class Space(ABC):
     """
     As in, "address space". Spaces are an abstraction of an address layer, and not part of the serialization format.
 
@@ -15,84 +18,186 @@ class Space:
     """
     # Because this isn't part of the serialization format, maybe a good place to enact notifications.
     
-    def __init__(self, pkgcls, entitycls, compcls):
+    def __init__(self, pkgcls, entitycls, compcls, litcls, refcls):
         self.Package = pkgcls
         self.Entity = entitycls
         self.Component = compcls
+        self.Literal = litcls
+        self.Ref = refcls
+        self.constructors = [pkgcls, entitycls, compcls, litcls, refcls]
 
-    def _query_all(self):
-        raise NotImplementedError("Concrete subclasses must implement")
+    @abstractmethod
+    def _iter_packages(self):
+        """
+        Concrete subclasses should implement an iterator over all available Packages. 
+        """
 
-    def _query(self, jsonlogic):
-        for asset in self._query_all():
-            if logic.apply(jsonlogic, asset):
+    @abstractmethod
+    def _iter_entities(self):
+        """
+        Concrete subclasses should implement an interator over all available Entities.
+        """
+    
+    @abstractmethod
+    def _iter_components(self):
+        """
+        Concrete subclasses should implement an interator over all available Components.
+        """
+
+    @abstractmethod
+    def put_package(self, json):
+        """
+        Concrete subclasses should implement a idempotent operation to commit
+        a JSON description of a Package to storage.
+        """
+
+    @abstractmethod
+    def put_entity(self, json):
+        """
+        Concrete subclasses should implement a idempotent operation to commit
+        a JSON description of a Entity to storage.
+        """
+
+    @abstractmethod
+    def put_component(self, json):
+        """
+        Concrete subclasses should implement a idempotent operation to commit
+        a JSON description of a Component to storage.
+        """
+
+    def _query(self, jsonlogic, iterator):
+        for asset in iterator:
+            if logic(jsonlogic, asset):
                 yield asset
 
-    def query_packages(self, **kwargs):
-        for result in self._query(kwargs):
+    def query_packages(self, jsonlogic):
+        for result in self._query(jsonlogic, self._iter_packages()):
             yield self.Package(self, **result)
 
-    def query_entities(self, **kwargs):
-        for result in self._query(kwargs):
+    def query_entities(self, jsonlogic):
+        for result in self._query(jsonlogic, self._iter_entities()):
             yield self.Entity(self, **result)
 
-    def query_components(self, **kwargs):
-        for result in self._query(kwargs):
+    def query_components(self, jsonlogic):
+        for result in self._query(jsonlogic, self._iter_components()):
             yield self.Component(self, **result)
 
-    def get_package(self, **kwargs):
-        return next(self.query_packages(**kwargs))
+    def get_package(self, jsonlogic):
+        return next(self.query_packages(jsonlogic))
     
-    def get_entity(self, **kwargs):
-        return next(self.query_entities(**kwargs))
+    def get_entity(self, jsonlogic):
+        return next(self.query_entities(jsonlogic))
 
-    def get_component(self, **kwargs):
-        return next(self.query_entities(**kwargs))
+    def get_component(self, jsonlogic):
+        return next(self.query_entities(jsonlogic))
 
-    def _put(self, json):
-        raise NotImplementedError("Concrete subclasses must implement")
+    def get_by_id(self, id):
+        clause = {"==":[{"var":"id"}, id]}
+        return next(self.get_component(clause), 
+                    self.get_entity(clause),
+                    self.get_package(clause))
 
-    def put_package(self, pkg):
-        return self._put(pkg.json())
-
-    def put_entity(self, entity):
-        return self._put(entity.json())
-
-    def put_component(self, component):
-        return self._put(component.json())
-
+    def parse(self, json):
+        for constructor in self.constructors:
+            if constructor.can_parse(json):
+                return constructor(self, **json)
 
 class MemSpace(Space):
-    def __init__(self):
-        self.res = {}
+    def __init__(self, pkgcls, entitycls, compcls, litcls, refcls):
+        super().__init__(pkgcls, entitycls, compcls, litcls, refcls)
+        self._packages = {}
+        self._entities = {}
+        self._components = {}
 
-    def _query_all(self):
-        return self.res.values()
+    def _iter_packages(self):
+        for pkg in self._packages.values():
+            yield pkg
+
+    def _iter_entities(self):
+        for entity in self._entities.values():
+            yield entity
         
-    def _put(self, payload):
-        assert payload.get('id')
-        self.res[payload.get('id')] = payload
-        return payload
+    def _iter_components(self):
+        for component in self._components.values():
+            yield component 
 
+    def put_package(self, json):
+        return self._put(json, self._packages)
+    
+    def put_entity(self, json):
+        return self._put(json, self._entities)
 
-class SRoot:
+    def put_component(self, json):
+        return self._put(json, self._components)
+    
+    def _put(self, json, dataset):
+        assert json.get('id')
+        dataset[json.get('id')] = json
+        return json
+
+def match(**kwargs):
+    return {"and":[{"==":[{"var":k}, v]} for (k,v) in kwargs.items()]}
+
+class Base(ABC):
     def __init__(self, space, **kwargs):
         self.space = space
+
+    def clone(self, **kwargs):
+        return self.__class__(self.space, **kwargs)
+
+    @abstractmethod
+    def to_json(self):
+        """
+        Concrete subclasses should return a Python dictionary representing
+        their JSON serialization. 
+        """
+
+    @abstractclassmethod
+    def can_parse(json):
+        """
+        returns a boolean whether this class can parse the given JSON input. Used for factory methods. 
+        NOTE: Experimental. May need to be culled. 
+        """
+    
+class SRoot(Base):
+    def __init__(self, space, **kwargs):
+        super().__init__(space)
         self.id = kwargs.get('id') or str(uuid.uuid1())
         self.name = kwargs.get('name') or None
         self.types = set(kwargs.get('types') or [])
+        self._packages = set(kwargs.get("packages") or [])
+        self._entities = set(kwargs.get("entities") or [])
+        self._components = set(kwargs.get("components") or [])
         self.put()
     
+    @abstractmethod
     def put(self):
-        raise NotImplementedError("Concrete subclasses must implement")
+        """
+        Concrete subclasses should implement a method that calls the appropriate
+        put() method of the containing Space. 
+        """
+
+    def packages(self, jsonlogic = True):
+        return self.space.query_packages({"and":[{"in":[{"var":"id"}, self._packages]}, jsonlogic]})
+
+    def entities(self, jsonlogic = True):
+        return self.space.query_entities({"and":[{"in":[{"var":"id"}, self._entities]}, jsonlogic]})
+
+    def components(self, jsonlogic = True):
+        return self.space.query_components({"and":[{"in":[{"var":"id"}, self._components]}, jsonlogic]})
 
     def clone(self, **kwargs):
-        json = {**self.json(), **kwargs}
+        json = {**self.to_json(), **kwargs}
         assert json.get('id') != self.id
-        return self.__class__(self.space, **json)
+        return super().clone(**json)
 
-    def json(self):
-        return {"id":self.id, "types":list(self.types), "index":self.name}
+    def to_json(self):
+        return {"id":self.id, "types":list(self.types), "name":self.name}
+    
+    @classmethod
+    def can_parse(json):
+        keys = json.keys()
+        return "id" in keys and "types" in keys
     
     def __repr__(self):
         return "%s(%s)"%(self.__class__.__name__, self.id)
@@ -103,62 +208,43 @@ class SRoot:
     def __hash__(self):
         return hash(self.id)
 
-    def _find(self, set, name = None):
-        for id in set:
-            item = self.space.get(id)
-            print
-            if "SPackage" in item.get('types'): # FIXME
-                item = SPackage(self.space, **item)
-            elif "SEntity" in item.get('types'):
-                item = SEntity(self.space, **item)
-            elif "SComponent" in item.get('types'):
-                item = SComponent(self.space, **item)
-            if name and item.name == name:
-                return item
-            else:
-                yield item
-        
+
 class SEntity(SRoot):
-    def __init__(self, space, **kwargs):
-        self._packages = set(kwargs.get("packages") or [])
-        self._components = set(kwargs.get("components") or [])
-        super().__init__(space, **kwargs)
+    def put(self):
+        return self.space.put_entity(self.to_json())
 
-    def json(self):
-        return {**super().json(), **{"packages":list(self._packages), "components":list(self._components)}}
-    
-    def packages(self, **kwargs):
-        return self.space.query_packages(self._packages, **kwargs)
+    def to_json(self):
+        return {**super().to_json(), **{"packages":list(self._packages), "components":list(self._components)}}
 
-    def components(self, name= None):
-        return self.space.query_component(self)
+    @classmethod
+    def can_parse(self, json):
+        keys = json.keys()
+        return super().can_parse(json) and "packages" in keys and "components" in keys()
 
 class SComponent(SRoot):
     def __init__(self, space, **kwargs):
-        self._packages = set(kwargs.get("packages") or [])
-        self._entities = set(kwargs.get("entities") or [])
         self.contents = kwargs.get("contents") or None
         super().__init__(space, **kwargs)
 
-    def json(self):
-        return {**super().json(), **{"packages":list(self._packages), "entities":list(self._entities)}}
+    def put(self):
+        return self.space.put_component(self.to_json())
+
+    def to_json(self):
+        return {**super().to_json(), **{"packages":list(self._packages), "entities":list(self._entities), "contents":self.contents}}
  
-    def packages(self, name = None):
-        return self._find(self._packages, name)
-
-    def entities(self, name = None):
-        return self._find(self._entities, name)
-
 
 class SPackage(SRoot):
-    def __init__(self, space, **kwargs):
-        self._entities = set(kwargs.get("entities") or [])
-        self._components = set(kwargs.get("components") or [])
-        super().__init__(space, **kwargs)
+    def put(self):
+        return self.space.put_package(self.to_json())
 
-    def json(self):
-        return {**super().json(), **{"entities":list(self._entities), "components":list(self._components)}}
+    def to_json(self):
+        return {**super().to_json(), **{"entities":list(self._entities), "components":list(self._components)}}
     
+    @classmethod
+    def can_parse(self, json):
+        keys = json.keys()
+        return super().can_parse(json) and "entities" in keys and "components" in keys()
+        
     def add_entity(self, *entities): 
         for entity in entities:
             self._entities.add(entity.id)
@@ -180,27 +266,80 @@ class SPackage(SRoot):
         component.put()
         return component
 
-    def entities(self, name = None):
-        return self._find(self._entities, name)
-
-    def components(self, name = None):
-        return self._find(self._components, name)
-
     def link(self, e1 : 'SEntity', e2 : 'SEntity', **kwargs) -> 'Halflink':
         left = self.add_component(SComponent(self.space, **kwargs), e1)
         right = self.add_component(SComponent(self.space, **kwargs), e2)
 
-    
+class Contents(Base):
+    def __init__(self, space, value, type = "xsd:string"):
+        self._space = space
+        self._value = value 
+        self._type = type
 
-U = MemSpace()
+    @abstractmethod
+    def to_json(self):
+        """
+        Concrete subclasses should return a typed JSON-LD representation of their contents
+        """
+    def value(self):
+        return self._value
+
+    def type(self):
+        return self._type
+    
+    def clone(self):
+        return self.__class__(self.space, self.value(), self.type())
+
+    def __repr__(self):
+        return "%s[%s]"%(self.type() or "?", self.value())
+    
+    def __eq__(self, other):
+        return isinstance(other, Contents) and self.value() == other.value()
+    
+    def __hash__(self):
+        return hash(self.value())
+
+class Literal(Contents):
+    def to_json(self):
+        return {"value":self.value(), "types":self.type()}
+
+    @classmethod
+    def can_parse(json):
+        keys = json.keys()
+        return super().can_parse(json) and "value" in keys
+        
+class Ref(Contents):
+    
+    def to_json(self):
+        return {"id":self._value, "types":"id"}
+    
+    def value(self) -> 'Entity':
+        result = self.space.get_by_id(self.value())
+        if isinstance(result, Ref):
+            return result.get()
+        else:
+            return result
+
+
+class HalfLink(Ref):
+    def __init__(self, opposite, type = None):
+        super().__init__(opposite)
+        self.type = "HalfLink"
+
+    def get(self) -> 'Entity':
+        opposite = Root.get(self.value)
+        return next(iter(opposite.entities()))
+
+U = MemSpace(SPackage, SEntity, SComponent, Literal, Ref)
 
 P = SPackage(U, id="SPackage", types = ["SPackage"], entities=["SEntity"], components=["SComponent"])
 E = SEntity(U, id="SEntity", types = ["SEntity"], name = "SEntity", packages = ["SPackage"], components=["SComponent"])
 C = SComponent(U, id="SComponent", types = ["SComponent"], name = "SComponent", packages = ["SPackage"], entities=["SEntity"])
 
+"""
 E2 = E.clone(id = "E2")
 P.link(E, E2, contents = "Im a link")
-"""
+
 P = SPackage(U, id="SPackage")
 E = SEntity(U, id="SEntity")
 C = SComponent(U, id="SComponent")
@@ -235,51 +374,8 @@ class CompositeSpace(Space):
     def remove_space(self, space):
         return self._spaces.discard(space)
 
-class Contents:
-    def __init__(self, value, type):
-        self.value = value
-        self.type = type
-        self.owner = None
+"""
 
-    def set_owner(self, owner):
-        self.owner = owner
-
-    def json(self):
-        return {"@value":self.value, "@type":self.type}
-
-    def __repr__(self):
-        return "%s[%s]"%(self.type or "?", self.value)
-
-    def clone(self):
-        return self.__class__(self.value, self.type)
-
-    def get(self):
-        return self.value
-
-
-class Ref(Contents):
-    def __init__(self, target, type = None):
-        super().__init__(target, "Ref")
-    
-    def json(self):
-        return {"@id":self.value}
-    
-    def get(self) -> 'Entity':
-        result = Root.get(self.value).get()
-        if isinstance(result, Ref):
-            return result.get()
-        else:
-            return result
-
-
-class HalfLink(Ref):
-    def __init__(self, opposite, type = None):
-        super().__init__(opposite)
-        self.type = "HalfLink"
-
-    def get(self) -> 'Entity':
-        opposite = Root.get(self.value)
-        return next(iter(opposite.entities()))
 
 class Root:
     assets = {}
@@ -380,7 +476,7 @@ class Component(Root):
         return new 
 
     def json(self):
-        return {**super().json(), **{"contents":self.contents.json()}}
+        return {**super().json(), **{"contents":self.contents.to_json()}}
 
 
 class Package(Root):
@@ -542,3 +638,5 @@ assert door2.components(name='color').get() != standard_door.components(name='co
 
 # This basic cloning mechanism provides a foundation for building Packages of predefined Entities that stakeholders can then clone
 # from as the basis of their work. Those clones can be further enhanced and shared back for further cloning.
+
+"""
