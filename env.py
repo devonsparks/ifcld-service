@@ -1,4 +1,5 @@
-from re import I
+
+
 from uuid import uuid4
 from xml.dom.pulldom import parseString
 from json_logic import jsonLogic as logic
@@ -15,6 +16,124 @@ def stream(slot):
 
 def atom(value):
 	return isinstance(value, float) or isinstance(value, int) or isinstance(value, str)
+
+
+from collections import defaultdict
+
+def kvs(bindings = {}):
+    return defaultdict(lambda: kvs(), bindings)
+
+class MemSpace:
+	def __init__(self):
+		self.db = {}
+	
+	def new_id(self):
+		return str(uuid4())
+	
+	def has_id(self, id):
+		return bool(self.db.get(id))
+
+	def create(self):
+		"POST /envs"
+		id = self.new_id() 
+		self.db[id] = {"id":id}
+		return self.db[id].get("id")
+
+	def get(self, id):
+		"GET /envs/<id>/"
+		return self.db.get(id)
+	
+	def put(self, bindings):
+		"PUT /<env>/<id>/"
+		if not bindings.get("id"):
+			bindings["id"] = self.new_id()
+		kvs = {}
+		for (k, v) in bindings.items():
+			kvs[k] = self.put(v) if isinstance(v, dict) else v
+		self.db[bindings.get("id")] = kvs
+		return bindings.get("id")
+
+
+class SEnv:
+	ParentSymbol = "*"
+	def __init__(self, space, bindings = {}):
+		self.space = space
+		self.bindings = self.space.get(self.space.put(bindings))
+		assert self.bindings["id"]
+	
+	def to_json(self):
+		return self.bindings
+
+	def get(self, var):
+		"Find the innermost Env where var appears."
+		if var in self.bindings:
+			value = self.bindings[var]
+			if self.space.has_id(value) and not var == "id":
+				return SEnv(self.space, self.space.get(value))
+			else:
+				return value
+		elif self.bindings.get(SEnv.ParentSymbol):
+			return SEnv(self.space, self.space.get(self.bindings.get(SEnv.ParentSymbol))).get(var)
+		else: return None #raise ValueError("%s is not defined"%(var,))
+	
+	def update(self, bindings):
+		self.bindings = self.space.get(self.space.put({**bindings, **self.bindings}))
+		return self
+
+	def delete(self, var):
+		del self.bindings[var]
+		return self.update(self.bindings)
+
+	def create(self, bindings = {}):
+		"Creates a new sub-Env with a given set of bindings"
+		bindings[SEnv.ParentSymbol] = self.bindings["id"]
+		return SEnv(self.space, bindings)
+	
+	def halflink(self, env, key):
+		key = env.get(key) or env.get("id")
+		assert isinstance(key, str)
+		return self.update(dict(zip([key], [env.get("id")])))
+		
+	def link(self, env, key = "name"):
+		self.halflink(env, key)
+		env.halflink(self, key)
+		return self
+
+	def relate(self, target, rel):
+		"Relations link two environments via third using a standard description"
+		self.link(rel, key = "relating")
+		target.link(rel, key = "related")
+		return self
+	
+	def next(self, env):
+		self.update({"next":env.get("id")})
+
+	def __repr__(self):
+		return "%s(%s)"%(self.__class__.__name__, json.dumps(self.to_json(), indent=4))
+
+
+
+S = MemSpace()
+
+Root = SEnv(S, {"type":"Root", "id":"Root", "description":"I am an Env", "relating":"relating", "related":"related"})
+Entity = Root.create({"type":"Entity", "id":"Entity"})
+Component = Root.create({"type":"Component", "id":"Component"})
+Decomposes = Component.create({"type":"Relation", "name":"decomposition", "relating":"rel:decomposition", "related":"rel:decomposition", "description":"I describe relations between"})
+
+decomp1 = Decomposes.create({})
+e1 = Entity.create({"name":"e1"})
+c1 = Component.create({"name":"c1"})
+c2 = Component.create({"attach":"foo", "name":"c2", "foo":"c2-gets-attached-here"})
+e2 = Entity.create({"name":"e2"})
+
+#e1.link(c1)
+
+#e1.relate(e2, decomp1)
+
+e1.next(e2)
+
+#### Everything below this is scrap to pull from
+
 class Slot:
 	ids = {}
 	def __init__(self, name = None, prev = None):
@@ -41,9 +160,7 @@ class Slot:
 		else:
 			raise ValueError("%s is not defined"%(name,))
 
-	def spawn(self, name):
-		return self.__class__(name, self)
-
+	def spawn(self, name):		return self.__class__(name, self)
 	def set(self, contents):
 		self.contents = contents
 		return self
@@ -133,7 +250,6 @@ class Container:
 			"prev":self.prev.to_json() if isinstance(self.prev, Container) else None,  
 			"contents":self.contents.to_json() if isinstance(self.contents, Container) else None}
 
-
 class Env:
 	"An environment: a dict of {'var':val} pairs, with an outer Env."
 	ids = {}
@@ -144,10 +260,11 @@ class Env:
 		self.name = bindings.get("name") or self.id
 		self.__class__.ids[self.id] = self
 
+	
 	def __getitem__(self, var):
-		return self.find(var)
+		return self.get(var)
 
-	def find(self, var):
+	def get(self, var):
 		"Find the innermost Env where var appears."
 		if var in self.bindings:
 			result = self.bindings[var]
@@ -156,13 +273,14 @@ class Env:
 			else:
 				return result
 		elif not self.outer is None:
-			return self.outer.find(var)
+			return self.outer.get(var)
 		else: raise ValueError("%s is not defined"%(var,))
-		
+
 	def to_json(self):
 		def recur(v):
 			return v.to_json() if isinstance(v, Env) else v
 		return {"bindings":{k:recur(v) for k, v in self.bindings.items()}}
+
 
 	def update(self, bindings):
 		self.bindings.update(bindings)
@@ -207,24 +325,26 @@ class Env:
 		if self.outer:
 			self.outer.draw(dot)
 			dot.edge(self.id, self.outer.id)
-
+"""
 class Component(Env):
 	def slot(self, name):
-		return self.find(name)
+		return self.get(name)
 
 class Entity(Env):
 	def component(self, name):
-		return self.find(name)
+		return self.get(name)
 
 
 class Package(Env):
 	def entity(self, name):
-		return self.find(name)
+		return self.get(name)
 
 
 
 def blank():
 	return graphviz.Digraph(comment='Env Map', format='png', strict = True, node_attr={'shape': 'record'})
+
+
 
 dot = blank()
 
@@ -250,7 +370,6 @@ dot.render()
 
 
 # consider higher order find(*logics) function, that takes a seri
-"""
 
 before = blank()
 e1.draw(before)
