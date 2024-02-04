@@ -1,19 +1,32 @@
 # Standard Library
 from pathlib import Path
 from urllib.parse import quote as urlquote
-from sys import stdout
-
 
 # External Depedencies
-from SCL.Part21 import Parser, TypedParameter
-from rdflib import ConjunctiveGraph, URIRef, BNode, Literal, Namespace, RDF, RDFS, XSD, PROV
 from rdflib.graph import Collection
+from rdflib.parser import Parser, InputSource
 from dateutil import parser as dtparser
+from rdflib import (ConjunctiveGraph, 
+                    Graph, 
+                    URIRef, 
+                    BNode, 
+                    Literal, 
+                    Namespace, 
+                    RDF, 
+                    RDFS, 
+                    XSD, 
+                    PROV, 
+                    DCTERMS
+                    )
+
 
 # Internal Dependencies
-from utils import Client, get_offset_map, get_ordered_attribute_set
-from visitors import FileVisitor
-from errors import MalformedInputError, ImpossibleConditionError
+from .utils import Client, get_offset_map, get_ordered_attribute_set
+from .visitors import FileVisitor
+from .errors import MalformedInputError, ImpossibleConditionError
+from .SCL.Part21 import Parser as SCLParser, TypedParameter
+
+IFCLD_ID = Namespace("http://ifc-ld.org/ids#")
 
 def is_enum(param):
     return isinstance(param, str) and param.startswith('.') and param.endswith('.')
@@ -84,9 +97,17 @@ def make_list(client, lst):
 
 def make_structured_value(client, param):
     head = BNode()
-    client.graph.add((head, RDF.value, make_terminal(client, param), client.graph.identifier))
+
+    client.graph.add((head, 
+                      RDF.value, 
+                      make_terminal(client, param), 
+                      client.graph.identifier))
+    
     if is_typed_parameter(param):
-        client.graph.add((head, RDF.type, URIRef(param.type_name.lower()), client.graph.identifier))
+        client.graph.add((head, 
+                          RDF.type, 
+                          URIRef(param.type_name.lower()), 
+                          client.graph.identifier))
     return head
 
 
@@ -98,7 +119,8 @@ def make_object(client, param):
     elif is_collection(param):
             return make_list(client, param)
     elif is_typed_parameter(param):
-        if len(param.params) > 1 or (len(param.params) == 1 and is_collection(param.params[0])):
+        if len(param.params) > 1 or \
+            (len(param.params) == 1 and is_collection(param.params[0])):
             return make_object(client, param.params)
         else:
             return make_object(client, param.params[0])
@@ -119,26 +141,20 @@ class IFCLDClient(Client):
         self.ordered_attribute_set = None       # identifies which parameters are ordered - derived from schema
 
     def begin_file(self, file, offset):
-        schema_name = file.header.file_schema.params[0][0].lower()
-        self.base_uri = "http://base.com/guid"
-        self.vocab_uri = "http://ifc-ld.org/schemas/{ifc_schema}".format(ifc_schema=schema_name)
-
-        #self.graph = ConjunctiveGraph(identifier = self.base_uri)
-        self.graph.bind("rdf", RDF)
-        self.graph.bind("rdfs", RDFS)
-        self.graph.bind("xsd", XSD)
-        self.graph.bind("ifc", Namespace(self.vocab_uri+"#"))
-
-        self.offset_map = get_offset_map(schema_name)
-        self.ordered_attribute_set = get_ordered_attribute_set(schema_name)
+        self.base_uri = self.graph.identifier
 
         self._add_time_provenance(file)
         self._add_authorship_provenance(file)
+        self._add_schema_metadata(file)
+        self._apply_std_context(file)
 
     def begin_entity(self, entity, offset):
         self.current_entity = entity
         self.current_entity_type_uri = str(URIRef("#"+entity.type_name.lower(), base=self.vocab_uri))
-        self.graph.add((URIRef(entity.ref, base=self.base_uri), RDF.type, URIRef(self.current_entity_type_uri), self.graph.identifier))
+        self.graph.add((URIRef(entity.ref, base=self.base_uri), 
+                        RDF.type, 
+                        URIRef(self.current_entity_type_uri), 
+                        self.graph.identifier))
 
     def end_entity(self, entity, offset):
         self.current_entity = None
@@ -151,7 +167,8 @@ class IFCLDClient(Client):
         if self.current_entity_type_uri not in self.offset_map:
             raise Exception("Entity type {uri} not found in offset map".format(uri=self.current_entity_type_uri))
         
-        property = URIRef("{property_uri}".format(property_uri=self.offset_map[self.current_entity_type_uri][offset]))
+        property_uri = self.offset_map[self.current_entity_type_uri][offset]
+        property = URIRef(property_uri)
         
         if is_collection(param) and str(property) not in self.ordered_attribute_set: # sets
             for item in param:
@@ -160,9 +177,21 @@ class IFCLDClient(Client):
         else:
             self.graph.add((URIRef(self.current_entity.ref, base=self.base_uri),     # lists and everything else
                         property, make_object(self, param), self.graph.identifier))
-            
+
+        if property_uri.endswith("globalid"):
+            """
+            To every IFC instance with a GlobalID attribute, we ascribe
+            a DCTERMS.subject, whose value is a URI built from the GlobalId string.
+            This lets consumers collate properties of persistent objects by querying against
+            this URI. 
+            """
+            self.graph.add((URIRef(self.current_entity.ref, base=self.base_uri),
+                        DCTERMS.subject, 
+                        URIRef(IFCLD_ID + param),
+                        self.graph.identifier))
+
+
     def _add_time_provenance(self, file):
-        print(type(self.graph))
         datetime = file.header.file_name.params[1]
         if datetime:
             self.graph.add((self.graph.identifier, 
@@ -177,58 +206,39 @@ class IFCLDClient(Client):
                             PROV.wasAttributedTo, 
                             Literal(author, datatype=XSD.string), 
                             self.graph.identifier))
-        
 
+    def _add_schema_metadata(self, file):
+        schema_name = file.header.file_schema.params[0][0].lower()
+        self.vocab_uri = "http://ifc-ld.org/schemas/{ifc_schema}".format(ifc_schema=schema_name)
+        self.offset_map = get_offset_map(schema_name)
+        self.ordered_attribute_set = get_ordered_attribute_set(schema_name)
+        self.graph.add((self.graph.identifier, 
+                            DCTERMS.conformsTo, 
+                            URIRef(self.vocab_uri+"#"),
+                            self.graph.identifier))
 
-def parse(stream):
-    parser = Parser()
-    try:
-        return parser.parse(stream.read().decode("utf-8"))
-    except:
-        raise MalformedInputError("Unable to parse input.")
+    def _apply_std_context(self, file):
+        self.graph.bind("rdf", RDF)
+        self.graph.bind("rdfs", RDFS)
+        self.graph.bind("xsd", XSD)
+        self.graph.bind("ifc", Namespace(self.vocab_uri+"#"))
 
-
-def ast_to_client(ast, graph):
-    client = IFCLDClient(graph)
-    FileVisitor().visit(client, ast)
-    return client
-
-from rdflib import ConjunctiveGraph, Graph
-from rdflib.parser import Parser as RDFLibParser, InputSource
-from rdflib.plugin import register
-
-
-class STEPParser(RDFLibParser):
+class STEPParser(Parser):
     def parse(self, source : InputSource, sink : Graph, **kwargs):
-         # NOTE: A ConjunctiveGraph parses into a Graph sink, so no sink will be
-        # context_aware. Keeping this check in case RDFLib is changed, or
-        # someone passes something context_aware to this parser directly.
+        # NOTE: ConjunctiveGraphs parse() into a Graph sink, 
+        # so have to patch that before continuing.
         if not sink.context_aware:
-            conj_sink = ConjunctiveGraph(store=sink.store, identifier=sink.identifier)
-        else:
-            conj_sink = sink
-        ast = parse(source.getByteStream())
-        ast_to_client(ast, conj_sink)
+            sink = ConjunctiveGraph(store=sink.store, identifier=sink.identifier)
+        step_ast = self._step_parse(source)
+        client = IFCLDClient(sink)
+        FileVisitor().visit(client, step_ast)
         
+    def _step_parse(self, source):
+        parser = SCLParser()
+        try:
+            stream = source.getByteStream()
+            return parser.parse(stream.read().decode("utf-8"))
+        except:
+            raise MalformedInputError("Unable to parse input.")
 
-
-register(
-    "step",
-    RDFLibParser,
-    "stp2ifcld",
-    "STEPParser",
-)
-
-
-if __name__ == "__main__":
-    import argparse
-    import sys
-    parser = argparse.ArgumentParser(
-        description='Convert a STEP Part 21 file to IFC-LD')
-    parser.add_argument('-f', '--file', dest='file', help='STEP Part 21 input file', required=True, default =sys.stdin)
-    parser.add_argument('-s', '--serialization', dest='serialization', required=False, default = "turtle")
-    args = parser.parse_args()
-    g = ConjunctiveGraph(identifier = "http://ifc-ld.org/graphs#")
-    g.parse(args.file, format="step")
-    print(g.serialize(format=args.serialization))
 

@@ -1,0 +1,22 @@
+ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION(('ifcJSON graph demo'),'2;1');
+FILE_NAME(
+/* name */ 'demo.json',
+/* time_stamp */ '2021-02-15T00:27:54',
+/* author */ ('Devon Sparks'),
+/* organization */ ('Unknown'),
+/* preprocessor_version */ 'Devons tools',
+/* originating_system */ 'Devons tools',
+/* authorization */ 'None');
+
+FILE_SCHEMA (('IFC4'));
+ENDSEC;
+
+
+DATA;
+#1= IFCORGANIZATION($,'Autodesk Revit 2021 (ESP)',$,$,$);
+#5= IFCAPPLICATION(#1,'2021','Autodesk Revit 2021 (ESP)','Revit');
+ENDSEC;
+
+END-ISO-10303-21;

@@ -1,0 +1,24 @@
+ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION(('ifcJSON graph demo'),'2;1');
+FILE_NAME(
+/* name */ 'demo.json',
+/* time_stamp */ '2021-02-15T00:27:54',
+/* author */ ('Devon Sparks'),
+/* organization */ ('Unknown'),
+/* preprocessor_version */ 'Devons tools',
+/* originating_system */ 'Devons tools',
+/* authorization */ 'None');
+
+FILE_SCHEMA (('IFC4'));
+ENDSEC;
+
+DATA;
+#1= IFCAPPLICATION(#2,'1.0.0.0','Devons tools');
+#2= IFCORGANIZATION($,'Devons Free Time Inc',$,$,$);
+#3= IFCPERSONANDORGANIZATION(#4,#5,$);
+#4= IFCPERSON('0AWWK3VRz3XgZicZ4jQe72', 'Devon','Sparks',$,$,$,$,$,$);
+#5= IFCOWNERHISTORY(#3,#1,$,.ADDED.,1418084874,$,$,1418084874);
+ENDSEC;
+
+END-ISO-10303-21;

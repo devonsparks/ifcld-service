@@ -1,7 +1,9 @@
 from rdflib import Graph
-from utils import get_offset_map
+from parsers.step.utils import get_offset_map
 
-g = Graph().parse("out.ttl")
+"""
+TODO: This module is incomplete. For now it's mostly sketches of queries. 
+"""
 
 def make_subject_map(graph):
     result = {}

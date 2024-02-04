@@ -1,0 +1,414 @@
+{
+    "@context": {
+        "meta": "@nest",
+        "who": {
+            "@id": "http://ifc-ld.org#who",
+            "@nest": "meta"
+        },
+        "when": {
+            "@id": "http://ifc-ld.org#when",
+            "@nest": "meta"
+        },
+        "objectof": {
+            "@type": "@id",
+            "@id": "http://ifc-ld.org#objectof",
+            "@nest": "meta"
+        },
+        "slotof": {
+            "@type": "@id",
+            "@id": "http://ifc-ld.org#slotof",
+            "@nest": "meta"
+        },
+        "contents": "http://ifc-ld.org#contents",
+        "@vocab": "http://ifc-ld.org/",
+        "ifc4": "http://buildingsmart.org/standards/ifc4/",
+        "objects": {
+            "@id": "http://ifc-ld.org#object",
+            "@container": "@index"
+        },
+        "slots": {
+            "@id": "http://ifc-ld.org#slot",
+            "@container": "@index"
+        }
+    },
+    "@id": "http://ifc-ld.org/3yR0P4rf1199KDE%24tywDzA",
+    "@index": "3yR0P4rf1199KDE%24tywDzA",
+    "@type": "Package",
+    "objects": {
+        "0AWWK3VRz3XgZicZ4jQe72": {
+            "@id": "http://ifc-ld.org/0AWWK3VRz3XgZicZ4jQe72",
+            "@type": [
+                "ifc4:person",
+                "Object"
+            ],
+            "meta": {
+                "objectof": "http://ifc-ld.org/3yR0P4rf1199KDE%24tywDzA"
+            },
+            "slots": {
+                "addresses": {
+                    "@type": "ifc4:person/7",
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/0AWWK3VRz3XgZicZ4jQe72",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "engagedin": {
+                    "@type": "ifc4:person/8",
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/0AWWK3VRz3XgZicZ4jQe72",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "identification": {
+                    "@type": "ifc4:person/0",
+                    "contents": {
+                        "@type": "xsd:string",
+                        "@value": "0AWWK3VRz3XgZicZ4jQe72"
+                    },
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/0AWWK3VRz3XgZicZ4jQe72",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "familyname": {
+                    "@type": "ifc4:person/1",
+                    "contents": {
+                        "@type": "xsd:string",
+                        "@value": "Devon"
+                    },
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/0AWWK3VRz3XgZicZ4jQe72",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "givenname": {
+                    "@type": "ifc4:person/2",
+                    "contents": {
+                        "@type": "xsd:string",
+                        "@value": "Sparks"
+                    },
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/0AWWK3VRz3XgZicZ4jQe72",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "middlenames": {
+                    "@type": "ifc4:person/3",
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/0AWWK3VRz3XgZicZ4jQe72",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "prefixtitles": {
+                    "@type": "ifc4:person/4",
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/0AWWK3VRz3XgZicZ4jQe72",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "suffixtitles": {
+                    "@type": "ifc4:person/5",
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/0AWWK3VRz3XgZicZ4jQe72",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "roles": {
+                    "@type": "ifc4:person/6",
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/0AWWK3VRz3XgZicZ4jQe72",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                }
+            }
+        },
+        "0z6hCLmEH5NedEvLQX4_K1": {
+            "@id": "http://ifc-ld.org/0z6hCLmEH5NedEvLQX4_K1",
+            "@type": [
+                "ifc4:application",
+                "Object"
+            ],
+            "meta": {
+                "objectof": "http://ifc-ld.org/3yR0P4rf1199KDE%24tywDzA"
+            },
+            "slots": {
+                "applicationdeveloper": {
+                    "@type": "ifc4:application/0",
+                    "contents": {
+                        "@id": "http://ifc-ld.org/2Swp_Qjw96SenZYr6l648y",
+                        "@index": "2Swp_Qjw96SenZYr6l648y",
+                        "@type": [
+                            "ifc4:organization",
+                            "Object"
+                        ],
+                        "meta": {
+                            "objectof": "http://ifc-ld.org/3yR0P4rf1199KDE%24tywDzA"
+                        }
+                    },
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/0z6hCLmEH5NedEvLQX4_K1",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "version": {
+                    "@type": "ifc4:application/1",
+                    "contents": {
+                        "@type": "xsd:string",
+                        "@value": "1.0.0.0"
+                    },
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/0z6hCLmEH5NedEvLQX4_K1",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "applicationfullname": {
+                    "@type": "ifc4:application/2",
+                    "contents": {
+                        "@type": "xsd:string",
+                        "@value": "Devons tools"
+                    },
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/0z6hCLmEH5NedEvLQX4_K1",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                }
+            }
+        },
+        "1V1Phg2CzBEvkpn1mECS6M": {
+            "@id": "http://ifc-ld.org/1V1Phg2CzBEvkpn1mECS6M",
+            "@type": [
+                "ifc4:ownerhistory",
+                "Object"
+            ],
+            "meta": {
+                "objectof": "http://ifc-ld.org/3yR0P4rf1199KDE%24tywDzA"
+            },
+            "slots": {
+                "owninguser": {
+                    "@type": "ifc4:ownerhistory/0",
+                    "contents": {
+                        "@id": "http://ifc-ld.org/2CTO9N96b3rf5B1vbxlJiJ",
+                        "@index": "2CTO9N96b3rf5B1vbxlJiJ",
+                        "@type": [
+                            "ifc4:personandorganization",
+                            "Object"
+                        ],
+                        "meta": {
+                            "objectof": "http://ifc-ld.org/3yR0P4rf1199KDE%24tywDzA"
+                        }
+                    },
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/1V1Phg2CzBEvkpn1mECS6M",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "owningapplication": {
+                    "@type": "ifc4:ownerhistory/1",
+                    "contents": {
+                        "@id": "http://ifc-ld.org/0z6hCLmEH5NedEvLQX4_K1",
+                        "@index": "0z6hCLmEH5NedEvLQX4_K1",
+                        "@type": [
+                            "ifc4:application",
+                            "Object"
+                        ],
+                        "meta": {
+                            "objectof": "http://ifc-ld.org/3yR0P4rf1199KDE%24tywDzA"
+                        }
+                    },
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/1V1Phg2CzBEvkpn1mECS6M",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "state": {
+                    "@type": "ifc4:ownerhistory/2",
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/1V1Phg2CzBEvkpn1mECS6M",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "changeaction": {
+                    "@type": "ifc4:ownerhistory/3",
+                    "contents": {
+                        "@type": "xsd:string",
+                        "@value": ".ADDED."
+                    },
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/1V1Phg2CzBEvkpn1mECS6M",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "lastmodifieddate": {
+                    "@type": "ifc4:ownerhistory/4",
+                    "contents": {
+                        "@type": "xsd:integer",
+                        "@value": 1418084874
+                    },
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/1V1Phg2CzBEvkpn1mECS6M",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "lastmodifyinguser": {
+                    "@type": "ifc4:ownerhistory/5",
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/1V1Phg2CzBEvkpn1mECS6M",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "lastmodifyingapplication": {
+                    "@type": "ifc4:ownerhistory/6",
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/1V1Phg2CzBEvkpn1mECS6M",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "creationdate": {
+                    "@type": "ifc4:ownerhistory/7",
+                    "contents": {
+                        "@type": "xsd:integer",
+                        "@value": 1418084874
+                    },
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/1V1Phg2CzBEvkpn1mECS6M",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                }
+            }
+        },
+        "2CTO9N96b3rf5B1vbxlJiJ": {
+            "@id": "http://ifc-ld.org/2CTO9N96b3rf5B1vbxlJiJ",
+            "@type": [
+                "ifc4:personandorganization",
+                "Object"
+            ],
+            "meta": {
+                "objectof": "http://ifc-ld.org/3yR0P4rf1199KDE%24tywDzA"
+            },
+            "slots": {
+                "roles": {
+                    "@type": "ifc4:personandorganization/2",
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/2CTO9N96b3rf5B1vbxlJiJ",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "theperson": {
+                    "@type": "ifc4:personandorganization/0",
+                    "contents": {
+                        "@id": "http://ifc-ld.org/0AWWK3VRz3XgZicZ4jQe72",
+                        "@index": "0AWWK3VRz3XgZicZ4jQe72",
+                        "@type": [
+                            "ifc4:person",
+                            "Object"
+                        ],
+                        "meta": {
+                            "objectof": "http://ifc-ld.org/3yR0P4rf1199KDE%24tywDzA"
+                        }
+                    },
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/2CTO9N96b3rf5B1vbxlJiJ",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "theorganization": {
+                    "@type": "ifc4:personandorganization/1",
+                    "contents": {
+                        "@id": "http://ifc-ld.org/1V1Phg2CzBEvkpn1mECS6M",
+                        "@index": "1V1Phg2CzBEvkpn1mECS6M",
+                        "@type": [
+                            "ifc4:ownerhistory",
+                            "Object"
+                        ],
+                        "meta": {
+                            "objectof": "http://ifc-ld.org/3yR0P4rf1199KDE%24tywDzA"
+                        }
+                    },
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/2CTO9N96b3rf5B1vbxlJiJ",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                }
+            }
+        },
+        "2Swp_Qjw96SenZYr6l648y": {
+            "@id": "http://ifc-ld.org/2Swp_Qjw96SenZYr6l648y",
+            "@type": [
+                "ifc4:organization",
+                "Object"
+            ],
+            "meta": {
+                "objectof": "http://ifc-ld.org/3yR0P4rf1199KDE%24tywDzA"
+            },
+            "slots": {
+                "identification": {
+                    "@type": "ifc4:organization/0",
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/2Swp_Qjw96SenZYr6l648y",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "name": {
+                    "@type": "ifc4:organization/1",
+                    "contents": {
+                        "@type": "xsd:string",
+                        "@value": "Devons Free Time Inc"
+                    },
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/2Swp_Qjw96SenZYr6l648y",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "description": {
+                    "@type": "ifc4:organization/2",
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/2Swp_Qjw96SenZYr6l648y",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "roles": {
+                    "@type": "ifc4:organization/3",
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/2Swp_Qjw96SenZYr6l648y",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                },
+                "addresses": {
+                    "@type": "ifc4:organization/4",
+                    "meta": {
+                        "slotof": "http://ifc-ld.org/2Swp_Qjw96SenZYr6l648y",
+                        "when": "2021-02-15T00:27:54",
+                        "who": "Unknown"
+                    }
+                }
+            }
+        }
+    }
+}
